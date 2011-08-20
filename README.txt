@@ -40,7 +40,7 @@ Place HTTPConn.jar into your project directory and add the JAR to your project b
 
 	
 	String buf;
-	HTTPReader rdr = new HTTPConn("example.org"); // send the request to google.com
+	HTTPReader rdr = new HTTPConn("example.org"); // send the request to example.org
 	Post post = new Post("index.php"); // post to page 
 	FormData[] fd = {
 		new FormData("key1", "value1"),
