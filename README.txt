@@ -20,7 +20,7 @@ Place HTTPConn.jar into your project directory and add the JAR to your project b
 
 	String buf;
 	HTTPReader rdr = new HTTPConn("example.org"); // send the request to example.org
-	Get get = new Get(""); // get the home page
+	Get get = new Get(); // get the home page
 	rdr.exec(get);		// execute the request
 	
 	Scanner in = get.getScanner();	// read the response

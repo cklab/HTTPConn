@@ -27,6 +27,8 @@
 
 package com.cklab.httpconn.request;
 
+import com.cklab.httpconn.reader.HTTPReader;
+
 /**
  * Get Class.
  * 
@@ -37,6 +39,13 @@ package com.cklab.httpconn.request;
  */
 public class Get extends HTTPRequest {
 
+	/**
+	 * Construct a Get object to request the home page associated with the {@link HTTPReader} that executes it.
+	 */
+	public Get() {
+		this ("");
+	}
+	
 	/**
 	 * Construct a Get object to the given Page. SSL off by default.
 	 * @param page the page to request

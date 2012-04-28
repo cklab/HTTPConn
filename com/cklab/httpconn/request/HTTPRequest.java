@@ -25,8 +25,6 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -47,17 +45,26 @@ import com.cklab.httpconn.util.Redirect;
 
 public class HTTPRequest {
 
-	protected String post, method, page, referrer, cookies;
-	private int statusCode;
-	protected InputStream iStream;
-	protected OutputStream oStream;
-	private Redirect redir; 
-	private boolean useSSL;
-	private StringBuilder body;
-	private Map<String, List<String>> headers;
+
+	protected InputStream 					iStream;
+	protected OutputStream 					oStream;
+
+	private Map<String, List<String>> 		headers;
+	private ArrayList<InputTag> 			inputs;
+	
+	protected String 						post;
+	protected String 						method;
+	protected String 						page;
+	protected String 						referrer;
+	protected String 						cookies;
+	
+	private StringBuilder 					body;
+	private int 							statusCode;
+	private boolean 						useSSL;
+	
+	private Redirect 						redir; 
 	
 	
-	private Hashtable<String, InputTag> inputs;
 	/**
 	 * Create an HTTP Request.
 	 * @param method The method to use, e.g. "GET"
@@ -113,7 +120,7 @@ public class HTTPRequest {
 		this.useSSL = useSSL;
 		this.redir = null;
 		this.body = new StringBuilder();
-		this.inputs = new Hashtable<String, InputTag>();
+		this.inputs = new ArrayList<InputTag>();
 	}
 	
 	
@@ -146,7 +153,7 @@ public class HTTPRequest {
 					String name = m_name.group(1).trim();
 					String value = m_value.group(1).trim();
 					String type = m_type.group(1);
-					inputs.put(name, new InputTag(name, value, type));
+					inputs.add(new InputTag(name, value, type));
 				}
 			}
 		}
@@ -160,7 +167,11 @@ public class HTTPRequest {
 	 */
 	public String getFormData()
 	{
-		return post.replaceAll("\\s", "%20");
+		if (post != null) {
+			return post.replaceAll("\\s", "%20");
+		} else {
+			return null;
+		}
 	}
 	
 	/**
@@ -328,18 +339,23 @@ public class HTTPRequest {
 	}
 
 	/**
-	 * Get the <code>InputTag</code> associated with an input tag that has the given <code>name</code> field. 
+	 * Get a list <code>InputTag</code> associated with an input tag that has the given <code>name</code> field. 
 	 * @param name the name field of the tag
-	 * @return the <code>InputTag</code> associated with an input tag that has the given <code>name</code> field. 
+	 * @return the list of <code>InputTag</code> objects associated with an input tag that has the given <code>name</code> field. 
 	 */
-	public InputTag getInputValueByName(String name)
+	public ArrayList<InputTag> getInputsByName(String name)
 	{
 		if (name == null)
 			return null;
 		
-		name = name.toLowerCase();
-		InputTag input = inputs.get(name);
-		return input;
+		ArrayList<InputTag> found = new ArrayList<InputTag>();
+		for (InputTag tag : inputs) 
+		{
+			if (name.equals(tag.getName())) {
+				found.add(tag);
+			}
+		}
+		return found;
 	}
 	
 	
@@ -360,17 +376,14 @@ public class HTTPRequest {
 	public ArrayList<InputTag> getInputFields(String type)
 	{
 		ArrayList<InputTag> l = new ArrayList<InputTag>();
-		Iterator<String> i = inputs.keySet().iterator();
-		while (i.hasNext())
+		for (InputTag tag : inputs)
 		{
-			String name = i.next();
-			InputTag input = inputs.get(name);
 			if (type == null)
 			{
-				l.add(input);
+				l.add(tag);
 			} else {
-				if (input.getType().equalsIgnoreCase(type))
-					l.add(input);
+				if (tag.getType().equalsIgnoreCase(type))
+					l.add(tag);
 			}
 		}
 		return l;

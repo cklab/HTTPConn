@@ -31,12 +31,18 @@ import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.SocketAddress;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
-
+import javax.net.ssl.SSLSession;
 
 import com.cklab.httpconn.request.Get;
 import com.cklab.httpconn.request.HTTPRequest;
@@ -53,13 +59,14 @@ import com.cklab.httpconn.util.Redirect;
  */
 public class HTTPReader extends Thread {
 
+	public static final int HTTP_SERVICE_UNAVAILABLE = 503;
 
 	/**
 	 * The User-Agent that is sent to the HTTP server.
 	 */
 	public static String USER_AGENT = "HTTPConn for Java";
-	
-	
+
+
 	private static boolean DEBUG;
 	private String site;
 	private int port;
@@ -71,6 +78,13 @@ public class HTTPReader extends Thread {
 	private boolean followRedirects;
 	private boolean handleCookies;
 
+
+	private HostnameVerifier hostnameVerifier;
+
+	public HTTPReader()
+	{
+		this(null);
+	}
 
 	/**
 	 * Create an HTTPReader for the given site. on port 80.
@@ -206,6 +220,12 @@ public class HTTPReader extends Thread {
 				else 
 					conn = (HttpURLConnection)url.openConnection();
 			}
+
+			if (req.isUsingSSL() && hostnameVerifier != null) {
+				HttpsURLConnection sslConnection = (HttpsURLConnection)conn;
+				sslConnection.setHostnameVerifier(hostnameVerifier);
+			}
+
 
 			// settings to look liek firefox..
 			conn.setRequestProperty("User-Agent", getUserAgent());
@@ -434,7 +454,7 @@ public class HTTPReader extends Thread {
 			Authenticator.setDefault(new Authenticator() {
 				protected PasswordAuthentication getPasswordAuthentication() {
 					return new
-					PasswordAuthentication(username,password.toCharArray());
+							PasswordAuthentication(username,password.toCharArray());
 				}});
 
 		}
@@ -618,6 +638,12 @@ public class HTTPReader extends Thread {
 		//after we execute the redirect, the redirect becomes the "lastRequest"
 		//This will cause getRedirect() to fail
 		HTTPRequest lastRequest = this.lastRequest;
+		
+		// in the case we get a 503, we do not want to try to execute again..
+		if (this.lastRequest.getStatusCode() == HTTP_SERVICE_UNAVAILABLE) {
+			return;
+		}
+		
 		HTTPReader rdr = getRedirect().getHTTPReader();
 		HTTPRequest req = getRedirect().getHTTPRequest();
 
@@ -697,7 +723,7 @@ public class HTTPReader extends Thread {
 	 */
 	public void addCookie(String key, String value)
 	{
-		if (key == null || value == null || key.equals("") || value.equals(""))
+		if (key == null || value == null)
 		{
 
 			if (DEBUG)
@@ -775,4 +801,8 @@ public class HTTPReader extends Thread {
 		this.followRedirects = redir;
 	}
 
+	
+	public void setHostnameVerifier(HostnameVerifier hostnameVerifier) {
+		this.hostnameVerifier = hostnameVerifier;
+	}
 }
