@@ -56,6 +56,7 @@ Place HTTPConn.jar into your project directory and add the JAR to your project b
 	}
 	
 3.3) Using SSL
+-------------------------------------------------------
 
     String buffer;
 	HTTPReader rdr = new HTTPConn("example.org"); // send the request to example.org
