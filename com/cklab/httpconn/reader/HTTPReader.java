@@ -197,36 +197,33 @@ public class HTTPReader extends Thread implements Cloneable {
 				// for a POST method, we need to send the post data: do that here
 				DataOutputStream oStream = new DataOutputStream(conn.getOutputStream());
 				oStream.writeBytes(req.getFormData());
-				try {
-					oStream.close();
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
+				oStream.flush();
+				oStream.close();
 			}
 
 			// we should be done with our end of the contract, it's time to parse the response from the HTTP Server
 			parseServerResponse(req, conn);
 
+			conn.disconnect();
+			conn = null;
+
+		} catch (BindException be) {
+			if (conn != null) {
+				//				System.out.println("Conn: "+conn.getURL());
+			}
+			be.printStackTrace();
+			try {
+				Thread.sleep(5*1000);	
+			} catch (Exception ex) { }
+			if (retry)
+				exec(req, false); 
 		} catch (Exception e) {
 			e.printStackTrace();
-			
-			if (retry) {
-				try {
-					Thread.sleep(5*1000);	
-				} catch (Exception ex) { }
-				
-				exec(req, false);
-			}
-		} finally {
-			if (conn != null) {
-				try {
-					conn.disconnect();
-					conn = null;
-				} catch (Exception e) {
-					System.err.println("Failed to close connection");
-					e.printStackTrace();
-				}
-			}
+			try {
+				Thread.sleep(5*1000);	
+			} catch (Exception ex) { }
+			if (retry)
+				exec(req, false); 
 		}
 
 		req = null;
