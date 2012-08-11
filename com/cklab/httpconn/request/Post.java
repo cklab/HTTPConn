@@ -111,33 +111,24 @@ public class Post extends HTTPRequest {
 	 */
 	public String getFormField(String in_key)
 	{
-		String fields[] = post.split("&");
+		String fields[] = formData.split("&");
+		
 		for (int i = 0;i<fields.length;i++)
 		{
 			String params[] = fields[i].split("=");
-			String key = params[0];
-			String value = params[1];
-			if (key.equals(in_key))
-			{
+			
+			if (fields.length <= 1) {
+				System.err.println("Malformed key/value pair for Post object");
+				continue;
+			}
+			
+			String key 		= params[0];
+			String value	= params[1];
+			
+			if (key.equals(in_key)) {
 				return value;
 			}
 		}
 		return null;
-	}
-	/**
-	 * Obtain a clone of this Post object.
-	 * Preserved variables:
-	 * 		page - the page
-	 * 		useSSL - whether or not to use SSL
-	 * 		cookies - the cookies for the HTTPRequest
-	 * 		formPost - the POST string
-	 * 
-	 * @return the cloned Post object
-	 */
-	public Post clone()
-	{
-		Post ret = new Post(page, cookies, isUsingSSL());
-		ret.setFormData(getFormData());
-		return ret;
 	}
 }

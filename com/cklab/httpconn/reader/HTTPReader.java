@@ -22,12 +22,15 @@
 package com.cklab.httpconn.reader;
 
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.Authenticator;
 import java.net.BindException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
+import java.net.ProtocolException;
 import java.net.Proxy;
 import java.net.SocketAddress;
 import java.net.URL;
@@ -42,7 +45,6 @@ import java.util.regex.Pattern;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLSession;
 
 import com.cklab.httpconn.request.Get;
 import com.cklab.httpconn.request.HTTPRequest;
@@ -57,7 +59,7 @@ import com.cklab.httpconn.util.Redirect;
  * @author cklab
  *
  */
-public class HTTPReader extends Thread {
+public class HTTPReader extends Thread implements Cloneable {
 
 	public static final int HTTP_SERVICE_UNAVAILABLE = 503;
 
@@ -66,23 +68,24 @@ public class HTTPReader extends Thread {
 	 */
 	public static String USER_AGENT = "HTTPConn for Java";
 
-
 	private static boolean DEBUG;
-	private String site;
-	private int port;
-	private boolean useProxy;
-	private Proxy proxy;
 
-	private HTTPRequest lastRequest;
-	protected Hashtable<String,FormData> cookies;
-	private boolean followRedirects;
-	private boolean handleCookies;
+	private String 		site;
+
+	private int	 		port;
+
+	private Proxy 		proxy;
+
+	protected Hashtable<String,FormData> 	cookies;
+
+	private boolean 	useProxy;
+	private boolean 	followRedirects;
+	private boolean 	handleCookies;
 
 
 	private HostnameVerifier hostnameVerifier;
 
-	public HTTPReader()
-	{
+	public HTTPReader() {
 		this(null);
 	}
 
@@ -90,9 +93,8 @@ public class HTTPReader extends Thread {
 	 * Create an HTTPReader for the given site. on port 80.
 	 * @param site the host to execute HTTPRequests on.
 	 */
-	public HTTPReader(String site)
-	{
-		this(site,80, true);
+	public HTTPReader(String site) {
+		this(site, 80, true);
 	}
 
 	/**
@@ -101,9 +103,8 @@ public class HTTPReader extends Thread {
 	 * @param followRedirects whether or not to follow redirects automatically.
 	 */
 
-	public HTTPReader(String site,  boolean followRedirects)
-	{
-		this(site,80, followRedirects);
+	public HTTPReader(String site,  boolean followRedirects) {
+		this(site, 80, followRedirects);
 	}
 
 	/**
@@ -111,9 +112,8 @@ public class HTTPReader extends Thread {
 	 * @param site the host to execute HTTPRequests on.
 	 * @param port the port for this host
 	 */
-	public HTTPReader(String site, int port)
-	{
-		this(site,port, true);
+	public HTTPReader(String site, int port) {
+		this(site, port, true);
 	}
 
 	/**
@@ -122,10 +122,8 @@ public class HTTPReader extends Thread {
 	 * @param port the port for this host
 	 * @param followRedirects whether or not to follow redirects automatically.
 	 */
-	public HTTPReader(String site, int port, boolean followRedirects)
-	{
+	public HTTPReader(String site, int port, boolean followRedirects) {
 		this(site, port, new Hashtable<String, FormData>(), followRedirects);
-
 	}
 
 	/**
@@ -135,14 +133,13 @@ public class HTTPReader extends Thread {
 	 * @param cookies the cookies to use for this HTTPReader
 	 * @param followRedirects whether or not to follow redirects automatically.
 	 */
-	public HTTPReader(String site, int port, Hashtable<String,FormData> cookies,  boolean followRedirects)
-	{
-		this.site = site;
-		this.port = port;
-		this.cookies = cookies;
-		this.followRedirects = followRedirects;
-		this.handleCookies = true;
-		this.useProxy = false;
+	public HTTPReader(String site, int port, Hashtable<String,FormData> cookies,  boolean followRedirects) {
+		this.site 				= site;
+		this.port 				= port;
+		this.cookies 			= cookies;
+		this.followRedirects 	= followRedirects;
+		this.handleCookies 		= true;
+		this.useProxy	 		= false;
 	}
 
 
@@ -150,8 +147,7 @@ public class HTTPReader extends Thread {
 	 * Enable/disable debugging
 	 * @param debug true if debugging should be enabled, false otherwise.
 	 */
-	public static void setDebug(boolean debug)
-	{
+	public static void setDebug(boolean debug) {
 		DEBUG = debug;
 	}
 
@@ -159,189 +155,58 @@ public class HTTPReader extends Thread {
 	 * Execute an HTTPRequest on this host.
 	 * @param req the request to execute.
 	 */
-	public void exec(HTTPRequest req)
-	{
+	public void exec(HTTPRequest req) {
 		exec(req, true);
 	}
 
 	/**
-	 * Execute an HTTPRequest on this host.
+	 * Execute an HTTPRequest on this HTTPReader.
 	 * 
 	 * 
 	 * @param req The HTTPRequest to execute
-	 * @param tryagain whether or not a second request should be attempted
+	 * @param retry whether or not a the request should be re-attempted in case of failure
 	 */
 
-	private synchronized void exec(HTTPRequest req, boolean tryagain)
+	private synchronized void exec(HTTPRequest req, boolean retry)
 	{
 		HttpURLConnection conn = null;
-		if (req == null) 
-		{
+
+		if (req == null) {
 			System.err.println("Null Request to exec()");
 			return;
 		}
 
 		req.setBody(null);
-		lastRequest = req;
-		//System.out.println("exec: ["+req.getPage()+"] class: ["+this+"]");
-		/*System.out.println("["+DateFormat.getDateTimeInstance(3,2).format(new Date().getTime())+"]"+
-				"exec(): do cookies");*/
-		if (handleCookies) 
+
+		if (handleCookies) { 
 			req.setCookies(getCookies());
+		}
 
 		try {
+
+			// we manually handle these by building Redirect objects, so the connection should never follow redirects
 			HttpURLConnection.setFollowRedirects(false);
-			//String str_url = (site.startsWith("http://")?"":"http://")+site;
-			String str_url = site;
-			if (!site.startsWith("http"))
-			{
-				if (req.isUsingSSL())
-					str_url = "https://"+site;
-				else
-					str_url = "http://"+site;
-			}
-			/*else {
-				if (site.startsWith("https://")) {
 
-				}
-			}*/
+			// build a HttpURLConnection for the HTTPRequest we were given
+			conn = getHttpURLConnection(req);
 
-
-			URL url = new URL(str_url+"/"+req.getPage());
-			if (useProxy && proxy != null)
-			{
-				if (req.isUsingSSL())
-					conn = (HttpsURLConnection)url.openConnection(proxy);
-				else
-					conn = (HttpURLConnection)url.openConnection(proxy);
-			} else {
-				if (req.isUsingSSL())
-					conn = (HttpsURLConnection)url.openConnection();
-				else 
-					conn = (HttpURLConnection)url.openConnection();
-			}
-
-			if (req.isUsingSSL() && hostnameVerifier != null) {
-				HttpsURLConnection sslConnection = (HttpsURLConnection)conn;
-				sslConnection.setHostnameVerifier(hostnameVerifier);
-			}
-
-
-			// settings to look liek firefox..
-			conn.setRequestProperty("User-Agent", getUserAgent());
-			conn.setRequestProperty("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-			conn.setRequestProperty("Accept-Language","en-us,en;q=0.5");
-			conn.setRequestProperty("Accept-Charset","ISO-8859-1,utf-8;q=0.7,*;q=0.7");
-			if (req.getReferrer() != null)
-				conn.setRequestProperty("Referer",req.getReferrer());
-			if (req.getCookies() != null && !req.getCookies().equals(""))
-				conn.setRequestProperty("Cookie",req.getCookies());
-			conn.setRequestMethod(req.getMethod());
-
-
-			conn.setConnectTimeout(15*1000);
-			conn.setReadTimeout(15*1000);
-			conn.setUseCaches (false);
-			conn.setDoInput(true);
-			conn.setDoOutput(true);
-
-
-			/*System.out.println("["+DateFormat.getDateTimeInstance(3,2).format(new Date().getTime())+"]"+
-			"exec(): connect");*/
-
+			// and we're off!
 			conn.connect();
 
-
-			/*System.out.println("["+DateFormat.getDateTimeInstance(3,2).format(new Date().getTime())+"]"+
-			"exec(): connected");*/
 			if (req.getMethod().equals("POST")) {
-				/*System.out.println("["+DateFormat.getDateTimeInstance(3,2).format(new Date().getTime())+"]"+
-				"exec(): Send the POST");*/
+				// for a POST method, we need to send the post data: do that here
 				DataOutputStream oStream = new DataOutputStream(conn.getOutputStream());
 				oStream.writeBytes(req.getFormData());
 				oStream.flush();
 				oStream.close();
-				/*System.out.println("["+DateFormat.getDateTimeInstance(3,2).format(new Date().getTime())+"]"+
-				"exec(): POST sent");*/
 			}
 
+			// we should be done with our end of the contract, it's time to parse the response from the HTTP Server
+			parseServerResponse(req, conn);
 
-			InputStream iStream = conn.getInputStream();
-			/*	System.out.println("["+DateFormat.getDateTimeInstance(3,2).format(new Date().getTime())+"]"+
-				"exec(): got inputstream");*/
-			//OutputStream oStream = conn.getOutputStream();
-
-			req.setInputStream(iStream);
-			req.setStatusCode(conn.getResponseCode());
-			req.setHeaders(conn.getHeaderFields());
-
-			/*System.out.println("["+DateFormat.getDateTimeInstance(3,2).format(new Date().getTime())+"]"+
-			"exec(): read request body");*/
-
-			if (handleCookies)
-				readCookies(req);
-
-
-			Get redirect = new Get(conn.getHeaderField("Location"));
-			//System.out.println("Location: ["+conn.getHeaderField("Location")+"]");
-			if (redirect.getPage() != null)
-			{
-
-				String host = getSite();
-				String page = redirect.getPage();
-				if (redirect.getPage().startsWith("https"))
-				{
-					redirect.useSSL(true);
-				}
-
-				if (redirect.getPage().startsWith("http"))
-				{
-
-					host = getHostFromURI(redirect.getPage());
-					page = getPageFromURI(redirect.getPage());
-				}
-
-
-				redirect.setPage(page);
-
-				/*System.out.println("Redirect to: ["+host+"] page: ["+page+"] redirect: ["
-						+redirect.getPage()+"] from: ["+lastRequest.getPage()+"]");*/
-				Redirect redir;
-
-				//System.out.println("host is: ["+host+"] and i'm ["+getSite()+"]");
-				if (host.equals(getSite()) || host.equals("")) {
-					redir = new Redirect(this, redirect);
-				} else
-					redir = new Redirect(new HTTPReader(host), redirect);
-
-				lastRequest.setRedirect(redir);
-			}
-			//System.out.println(hasRedirect() +"&&"+ followRedirects);
-
-
-			if (hasRedirect() && followRedirects)
-			{
-				// we first want to get the headers (maybe there's a cookie..?)
-				followRedirect();
-				req.setBody(getRedirect().getHTTPRequest().getBody());
-				req.setInputStream(lastRequest.getRedirect().getHTTPRequest().getInputStream());
-				//lastRequest.setRedirect(null);
-
-			} else {
-				req.readBody();
-			}
-
-			//if (conn != null)
-			//	conn.disconnect();
-
-			if (iStream != null)
-				iStream.close();
 			conn.disconnect();
-			iStream = null;
 			conn = null;
 
-		} catch (NullPointerException npe) {
-			npe.printStackTrace();
 		} catch (BindException be) {
 			if (conn != null) {
 				//				System.out.println("Conn: "+conn.getURL());
@@ -350,33 +215,172 @@ public class HTTPReader extends Thread {
 			try {
 				Thread.sleep(5*1000);	
 			} catch (Exception ex) { }
-			if (tryagain)
+			if (retry)
 				exec(req, false); 
-		}catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			try {
 				Thread.sleep(5*1000);	
 			} catch (Exception ex) { }
-			if (tryagain)
+			if (retry)
 				exec(req, false); 
 		}
 
-		req.die();
 		req = null;
 	}
 
 	/**
-	 * Read the cookies from this HTTPRequest
+	 * After we have setup the connection and sent our request, we will parse the response. 
+	 * 
+	 * This method currently serves a subroutine for {@link #exec(HTTPRequest, boolean)} to populate the {@link HTTPRequest}
+	 * with the server's response.
+	 * 
+	 * @param req
+	 * @param conn
+	 * @throws IOException
+	 */
+	private void parseServerResponse(HTTPRequest req, HttpURLConnection conn) throws IOException {
+
+		InputStream iStream = conn.getInputStream();
+
+		// let's tell the HTTPRequest a little about the response 
+		req.setStatusCode(conn.getResponseCode());
+		req.setHeaders(conn.getHeaderFields());
+
+
+		if (handleCookies) {
+			readCookies(req);
+		}
+
+		// find out if we had a redirect from this request
+		Get redirect = new Get(conn.getHeaderField("Location"));
+		if (redirect.getPage() != null) {
+			// yup, there's a redirect!
+			String host = getSite();
+			String page = redirect.getPage();
+
+			if (redirect.getPage().startsWith("https")) {
+				redirect.useSSL(true);
+			}
+
+			if (redirect.getPage().startsWith("http")) {
+				host = getHostFromURI(redirect.getPage());
+				page = getPageFromURI(redirect.getPage());
+			}
+			redirect.setPage(page);
+
+			Redirect redir;
+
+			// here we determine whether the site leads to an external site (hence we cannot use this HTTPReader), or we are staying local
+			if (host.equals(getSite()) || host.equals("")) {
+				redir = new Redirect(this, redirect);
+			} else {
+				redir = new Redirect(new HTTPReader(host), redirect);
+			}
+
+			req.setRedirect(redir);
+		}
+
+
+		// read the body of the request
+		req.readBody(iStream);
+
+		// we should be done with this stream here, release the resource
+		if (iStream != null) {
+			iStream.close();
+		}
+
+		if (req.getRedirect() != null && followRedirects) {
+			// in case there was a redirect from our request, we will build the entire chain 
+			followRedirect(req);
+		}
+
+	}
+
+
+	/**
+	 * Creates and returns a  HttpURLConnection associated with the {@link HTTPRequest}
+	 * @param req the request
+	 * @return the appropriate HttpUrlConnection (can be HttpsURLConnection if the {@link HTTPRequest} is using SSL).
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 * @throws ProtocolException
+	 */
+	private HttpURLConnection getHttpURLConnection(HTTPRequest req) throws MalformedURLException, IOException, ProtocolException {
+		HttpURLConnection conn;
+
+		// in order to use a URLConnection, we need the protocol in the front: find the correct protocol to use
+		String urlStr = site;
+		if (!site.startsWith("http")) {
+			if (req.isUsingSSL()) {
+				urlStr = "https://"+site;
+			} else {
+				urlStr = "http://"+site;
+			}
+		}
+
+		// construct the URL object and create the connection
+		URL url = new URL(urlStr+"/"+req.getPage());
+		if (useProxy && proxy != null) {
+			if (req.isUsingSSL()) {
+				conn = (HttpsURLConnection)url.openConnection(proxy);
+			} else {
+				conn = (HttpURLConnection)url.openConnection(proxy);
+			}
+		} else {
+			if (req.isUsingSSL()) {
+				conn = (HttpsURLConnection)url.openConnection();
+			} else { 
+				conn = (HttpURLConnection)url.openConnection();
+			}
+		}
+
+		// for handling SSL Certificates.. if the user specifies a verifier, then we should use it
+		if (req.isUsingSSL() && hostnameVerifier != null) {
+			HttpsURLConnection sslConnection = (HttpsURLConnection)conn;
+			sslConnection.setHostnameVerifier(hostnameVerifier);
+		}
+
+		// set up the request -- TODO: do the request properties need further customization by the user?
+		conn.setRequestProperty("User-Agent", getUserAgent());
+		conn.setRequestProperty("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+		conn.setRequestProperty("Accept-Language","en-us,en;q=0.5");
+		conn.setRequestProperty("Accept-Charset","ISO-8859-1,utf-8;q=0.7,*;q=0.7");
+
+		if (req.getReferrer() != null) {
+			conn.setRequestProperty("Referer",req.getReferrer());
+		}
+
+		if (req.getCookies() != null && req.getCookies().length() != 0) {
+			conn.setRequestProperty("Cookie", req.getCookies());
+		}
+
+		conn.setRequestMethod(req.getMethod());
+
+		// TODO these are not yet customizable, perhaps they should be variables that can be defined by the user
+		conn.setConnectTimeout(15*1000);
+		conn.setReadTimeout(15*1000);
+		conn.setUseCaches(false);
+
+		// we will handle both in and out
+		conn.setDoInput(true);
+		conn.setDoOutput(true);
+
+		return conn;
+	}
+
+	/**
+	 * Read the cookies from an HTTPRequest
 	 * @param req
 	 */
 	public synchronized void readCookies(HTTPRequest req)
 	{
 
 		Map<String, List<String>> headers = req.getHeaders();
-		if (headers == null)
-		{
-			if (DEBUG)
-				System.err.println("readCookies(): NULL headers for "+lastRequest.getPage());
+		if (headers == null) {
+			if (DEBUG) {
+				System.err.println("readCookies(): NULL headers for "+req.getPage());
+			}
 			return;
 		}
 		Iterator<String> it = headers.keySet().iterator();
@@ -480,7 +484,6 @@ public class HTTPReader extends Thread {
 	public void setProxy(Proxy proxy)
 	{
 		this.proxy = proxy;
-
 	}
 
 	/**
@@ -584,23 +587,7 @@ public class HTTPReader extends Thread {
 		this.handleCookies = handleCookies;
 	}
 
-	/**
-	 * Get the last Redirect this HTTPReader saw.
-	 * @return the last Redirect this HTTPReader saw.
-	 */
-	public Redirect getRedirect()
-	{
-		return lastRequest.getRedirect();
-	}
 
-	/**
-	 * Whether or not there was a redirect in the last request that was executed.
-	 * @return true if the last request had a redirect, false otherwise.
-	 */
-	private boolean hasRedirect()
-	{
-		return (lastRequest.getRedirect() != null);
-	}
 
 	/**
 	 * Whether or not a proxy is being used on the requests executed.
@@ -632,43 +619,33 @@ public class HTTPReader extends Thread {
 	/**
 	 * Follow a redirect
 	 */
-	private void followRedirect()
+	private void followRedirect(HTTPRequest originalReq)
 	{
-		//we want to save the request from which the redirect came because
-		//after we execute the redirect, the redirect becomes the "lastRequest"
-		//This will cause getRedirect() to fail
-		HTTPRequest lastRequest = this.lastRequest;
-		
 		// in the case we get a 503, we do not want to try to execute again..
-		if (this.lastRequest.getStatusCode() == HTTP_SERVICE_UNAVAILABLE) {
+		if (originalReq.getStatusCode() == HTTP_SERVICE_UNAVAILABLE) {
 			return;
 		}
-		
-		HTTPReader rdr = getRedirect().getHTTPReader();
-		HTTPRequest req = getRedirect().getHTTPRequest();
 
-		//System.out.println("redir:["+rdr.getSite()+"] me:["+getSite()+"]");
-		if (rdr.getSite().equals(getSite()))
-		{
+		HTTPReader 	redirRdr = originalReq.getRedirect().getHTTPReader();
+		HTTPRequest redirReq = originalReq.getRedirect().getHTTPRequest();
+
+		if (redirRdr.getSite().equals(getSite()) && this != redirRdr) {
 			//same cookies for the same site...
-
-			if (handleCookies)
-			{
-
+			if (handleCookies) {
 				//System.out.println("Transfer cookies for redirect");
 				//System.out.println("adding cookies: "+getCookies());
-				rdr.addCookies(getCookies());
+				redirRdr.addCookies(getCookies());
 			}
-
 			// also transfer the proxy settings
-			rdr.setProxy(getProxy());
+			redirRdr.setProxy(getProxy());
 		}
-		if (DEBUG)
-			System.out.println("Redirect to: "+rdr.getSite()+"/"+req.getPage());
 
-		//System.out.println(getPageFromURI(val));
-		rdr.exec(req);
-		this.lastRequest = lastRequest;
+		if (DEBUG) {
+			System.out.println("Redirect to: "+redirRdr.getSite()+"/"+redirReq.getPage());
+		}
+
+		redirRdr.exec(redirReq);
+
 	}
 
 	/**
@@ -725,22 +702,28 @@ public class HTTPReader extends Thread {
 	{
 		if (key == null || value == null)
 		{
-
-			if (DEBUG)
-				System.err.println("Failed to add cookie, null value");
+			if (DEBUG) {
+				System.err.println("Failed to add cookie, null value: "+key+"="+value);
+			}
 			return;
 		}
 
 		if (value.equals("deleted")) {
-			if (DEBUG)
+			// TODO: verify this behavior, so far there haven't been any problems -- should the expiration date be used in conjunction with this value?
+			//			update: just a value of `deleted` seems to be working fine so far...
+			if (DEBUG) {
 				System.out.println("Delete Cookie: "+key);
+			}
 			cookies.remove(key);
 		} else {
-			//System.out.println("Add cookie: ["+key+"="+value+"] for ["+this+"]");
-			//System.out.println("Add cookie "+key+"="+value);
+			if (DEBUG) {
+				System.out.println("Add cookie "+key+"="+value);
+			}
+
 			FormData cookie = new FormData(key.trim(),value.trim());
-			if (!cookie.invalid())
+			if (!cookie.invalid()) {
 				cookies.put(key, cookie);
+			}
 		}
 	}
 
@@ -748,11 +731,16 @@ public class HTTPReader extends Thread {
 	 * Remove a cookie.
 	 * @param key the name of the cookie
 	 */
-	public void delCookie(String key)
+	public void deleteCookie(String key)
 	{
-		if (key == null)
+		if (key == null) {
 			return;
-		System.out.println("Del cookie: "+key);
+		}
+
+		if (DEBUG) {
+			System.out.println("Del cookie: "+key);
+		}
+
 		cookies.remove(key);
 	}
 
@@ -762,25 +750,33 @@ public class HTTPReader extends Thread {
 	 */
 	public void addCookies(String cookies)
 	{
-		if (cookies == null || cookies.equals(""))
+		if (cookies == null || cookies.length() == 0)
 		{
-			//System.err.println("Null cookies in addCoookies()");
+			if (DEBUG) {
+				System.err.println("Null cookies in addCoookies()");
+			}
 			return;
 		}
+
 		String[] cookie = cookies.split(";");
+
 		for (int i =0;i<cookie.length;i++)
 		{
 			String[] params = cookie[i].split("=");
-			if (params.length < 2) continue;
-
-
-			String value =params[1].trim();
-
-			for (int a = 2; a< params.length;a++)
-			{
-				value+="="+params[a].trim();
+			if (params.length < 2) { 
+				continue; 
 			}
-			addCookie(params[0].trim(), value);
+
+
+			StringBuilder sb = new StringBuilder(params[1].trim());
+			// reconstruct the value portion in case we the cookie had a value with any '='s in it
+			for (int a = 2; a < params.length; a++)
+			{
+				sb.append("=");
+				sb.append(params[a].trim());
+			}
+			
+			addCookie(params[0].trim(), sb.toString());
 		}
 	}
 
@@ -801,7 +797,10 @@ public class HTTPReader extends Thread {
 		this.followRedirects = redir;
 	}
 
-	
+	/**
+	 * Define a {@link HostnameVerifier}.
+	 * @param hostnameVerifier
+	 */
 	public void setHostnameVerifier(HostnameVerifier hostnameVerifier) {
 		this.hostnameVerifier = hostnameVerifier;
 	}
