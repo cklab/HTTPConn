@@ -23,7 +23,6 @@ package com.cklab.httpconn.request;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -43,28 +42,25 @@ import com.cklab.httpconn.util.Redirect;
  *
  */
 
-public class HTTPRequest {
-
-
-	protected InputStream 					iStream;
-	protected OutputStream 					oStream;
+public class HTTPRequest implements Cloneable {
 
 	private Map<String, List<String>> 		headers;
 	private ArrayList<InputTag> 			inputs;
-	
-	protected String 						post;
+
+	protected String 						formData;
 	protected String 						method;
 	protected String 						page;
 	protected String 						referrer;
 	protected String 						cookies;
-	
+
 	private StringBuilder 					body;
 	private int 							statusCode;
+	
 	private boolean 						useSSL;
-	
-	private Redirect 						redir; 
-	
-	
+
+	private Redirect 						redirect; 
+
+
 	/**
 	 * Create an HTTP Request.
 	 * @param method The method to use, e.g. "GET"
@@ -75,7 +71,7 @@ public class HTTPRequest {
 	{
 		this(method,page,null,null, null, useSSL);
 	}
-	
+
 	/**
 	 * Create an HTTP Request.
 	 * @param method The method to use, e.g. "GET"
@@ -87,7 +83,7 @@ public class HTTPRequest {
 	{
 		this(method,page,null,referrer, null, useSSL);
 	}
-	
+
 	/**
 	 * Create an HTTP Request.
 	 * @param method The method to use, e.g. "GET"
@@ -100,7 +96,7 @@ public class HTTPRequest {
 	{
 		this(method, page, post, null,cookies, useSSL);
 	}
-	
+
 	/**
 	 * Create an HTTP Request.
 	 * @param method The method to use, e.g. "GET"
@@ -114,25 +110,31 @@ public class HTTPRequest {
 	{
 		this.method = method;
 		this.page = page;
-		this.post = post;
+		this.formData = post;
 		this.referrer = referrer;
 		this.cookies = cookies;
 		this.useSSL = useSSL;
-		this.redir = null;
+		this.redirect = null;
+		
+		// we don't expect multiple threads to populate the body, let's stick with StringBuilder for now
 		this.body = new StringBuilder();
+		
 		this.inputs = new ArrayList<InputTag>();
 	}
-	
-	
+
 	/**
 	 * Read the page and store necessary information.
+	 * 
+	 * TODO FIXME switch to an HTML Parser for the inputs: Potential solutions include JSoup/TagSoup/JTidy
 	 */
-	public void readBody()
+	public void readBody(InputStream iStream)
 	{
+		// to avoid potential memory leak 
+		//		-- if this HTTPRequest is read multiple times for some reason, `body` can get arbitrarily large
 		body.setLength(0);
 		
+		// TODO revise, don't use regex here
 		Scanner in = new Scanner(iStream);
-		//Pattern inputTagPattern = Pattern.compile("<input.*?>");
 		Pattern inputNamePattern = Pattern.compile("<input.*?name=\"(.*?)\".*?>");
 		Pattern inputValuePattern = Pattern.compile("<input.*?value=\"(.*?)\".*?>");
 		Pattern inputTypePattern = Pattern.compile("<input.*?type=\"(.*?)\".*?>");
@@ -158,7 +160,7 @@ public class HTTPRequest {
 			}
 		}
 	}
-	
+
 	/**
 	 * Get the form data.
 	 * 
@@ -167,13 +169,9 @@ public class HTTPRequest {
 	 */
 	public String getFormData()
 	{
-		if (post != null) {
-			return post.replaceAll("\\s", "%20");
-		} else {
-			return null;
-		}
+		return formData;
 	}
-	
+
 	/**
 	 * Set the form data. 
 	 * 
@@ -182,9 +180,13 @@ public class HTTPRequest {
 	 */
 	public void setFormData(String data)
 	{
-		this.post = data;
+		if (data == null) {
+			return;
+		}
+		
+		this.formData = data.replaceAll("\\s", "%20");
 	}
-	
+
 	/**
 	 * Set the headers.
 	 * 
@@ -196,7 +198,7 @@ public class HTTPRequest {
 	{
 		this.headers = headers;
 	}
-	
+
 	/**
 	 * Get the headers.
 	 * 
@@ -208,7 +210,7 @@ public class HTTPRequest {
 	{
 		return headers;
 	}
-	
+
 	/**
 	 * Set the referrer.
 	 * @param ref the referrer.
@@ -217,8 +219,8 @@ public class HTTPRequest {
 	{
 		this.referrer = ref;
 	}
-	
-	
+
+
 	/**
 	 * Set the status code received as a result of executing this HTTP Request.
 	 * @param statusCode the statusCode
@@ -227,7 +229,7 @@ public class HTTPRequest {
 	{
 		this.statusCode = statusCode;
 	}
-	
+
 	/**
 	 * Set the page to be visited.
 	 * @param page the page to be visited
@@ -245,7 +247,7 @@ public class HTTPRequest {
 	{
 		return page;
 	}
-	
+
 	/**
 	 * The method used for this HTTP Request. (e.g. GET)
 	 * @return the method used for this HTTP Request
@@ -254,7 +256,7 @@ public class HTTPRequest {
 	{
 		return method;
 	}
-	
+
 	/**
 	 * Get the referrer.
 	 * @return the referrer.
@@ -263,7 +265,7 @@ public class HTTPRequest {
 	{
 		return referrer;
 	}
-	
+
 	/**
 	 * Get the status code received as a result of executing this HTTP Request.
 	 * @return the status code received as a result of executing this HTTP Request.
@@ -272,7 +274,7 @@ public class HTTPRequest {
 	{
 		return statusCode;
 	}
-	
+
 	/**
 	 * Get the cookies used in this HTTP Request.
 	 * @return the cookies
@@ -281,7 +283,7 @@ public class HTTPRequest {
 	{
 		return cookies;
 	}
-	
+
 	/**
 	 * Set the cookies used in this HTTP Request.
 	 * @param s the cookies
@@ -290,7 +292,7 @@ public class HTTPRequest {
 	{
 		this.cookies = s;
 	}
-	
+
 	/**
 	 * The String representation of this HTTPRequest 
 	 */
@@ -312,11 +314,9 @@ public class HTTPRequest {
 	 */
 	public Scanner getScanner()
 	{
-		//return in;
-		//return new Scanner(iStream);
 		return new Scanner(body.toString());
 	}
-	
+
 	/**
 	 * Set the body. This is what has been read from the page as a result of executing this HTTP Request. 
 	 * @param body the body of the page
@@ -324,11 +324,11 @@ public class HTTPRequest {
 	public void setBody(String body)
 	{
 		this.body.setLength(0);
-		
+
 		if (body != null)
 			this.body = new StringBuilder(body);
 	}
-	
+
 	/**
 	 * Get the body of this page (the content of this page)
 	 * @return the body of the page.
@@ -345,9 +345,10 @@ public class HTTPRequest {
 	 */
 	public ArrayList<InputTag> getInputsByName(String name)
 	{
-		if (name == null)
+		if (name == null) {
 			return null;
-		
+		}
+
 		ArrayList<InputTag> found = new ArrayList<InputTag>();
 		for (InputTag tag : inputs) 
 		{
@@ -357,8 +358,8 @@ public class HTTPRequest {
 		}
 		return found;
 	}
-	
-	
+
+
 	/**
 	 * Get all the <code>input</code> tags on the page 
 	 * @return all the <code>input</code> tags on the page 
@@ -367,7 +368,7 @@ public class HTTPRequest {
 	{
 		return getInputFields(null);
 	}
-	
+
 	/**
 	 * Get all the <code>input</code> tags on the page with the given type 
 	 * @param type the type, e.g. <code>hidden</code>
@@ -375,61 +376,34 @@ public class HTTPRequest {
 	 */
 	public ArrayList<InputTag> getInputFields(String type)
 	{
-		ArrayList<InputTag> l = new ArrayList<InputTag>();
+		ArrayList<InputTag> inputFields = new ArrayList<InputTag>();
 		for (InputTag tag : inputs)
 		{
-			if (type == null)
-			{
-				l.add(tag);
+			if (type == null) {
+				inputFields.add(tag);
 			} else {
-				if (tag.getType().equalsIgnoreCase(type))
-					l.add(tag);
+				if (tag.getType().equalsIgnoreCase(type)) {
+					inputFields.add(tag);
+				}
 			}
 		}
-		return l;
+		return inputFields;
 	}
-	
+
 	/**
-	 * The InputStream used for reading from the connection.
+	 * The InputStream used for reading the body of the {@link HTTPRequest}.
 	 * @return the input stream.
 	 */
 	public InputStream getInputStream()
 	{
 		try {
 			return new ByteArrayInputStream(body.toString().getBytes("UTF-8"));
-		} catch (Exception e) { e.printStackTrace(); }
+		} catch (Exception e) { 
+			e.printStackTrace(); 
+		}
 		return null;
-		//return iStream;
-	}
-	
-	/**
-	 * The OutputStream used for writing to the connection.
-	 * @return the input stream.
-	 */
-	public OutputStream getOutputStream()
-	{
-		return oStream;
 	}
 
-	
-	/**
-	 * Kill and cleanup the connection. 
-	 */
-	public void die()
-	{
-		try {
-			if (iStream != null)
-				iStream.close();
-			if (oStream != null)
-				oStream.close();
-			
-			iStream = null;
-			headers.clear();
-			body.setLength(0);
-			headers = null;
-		} catch (Exception e) { }
-	}
-	
 	/**
 	 * Set this HTTP Request to use SSL.
 	 * @param useSSL whether or not SSL should be used.
@@ -438,7 +412,7 @@ public class HTTPRequest {
 	{
 		this.useSSL = useSSL;
 	}
-	
+
 	/**
 	 * Whether or not this HTTP Request is set to use SSL.
 	 * @return true if SSL is used, false otherwise.
@@ -454,32 +428,37 @@ public class HTTPRequest {
 	 */
 	public Redirect getRedirect()
 	{
-		return redir;
+		return redirect;
 	}
-	
+
 	/**
 	 * Get the Redirect object that results from loading this page.
 	 * @param redir the Redirect object that results from loading this page.
 	 */
 	public void setRedirect(Redirect redir)
 	{
-		this.redir = redir;
-	}
-	
-	/**
-	 * Set the InputStream used to read this connection.
-	 * @param in the InputStream used to read this connection.
-	 */
-	public void setInputStream(InputStream in)
-	{
-		this.iStream = in;
+		this.redirect = redir;
 	}
 
 	/**
-	 * Clone this HTTP Request
+	 * Clone this HTTP Request.
+	 * <p>
+	 * Cloned attributes are: <br/>
+	 *   HTTP Method <br/>
+	 *   Page <br/>
+	 *   Post Data <br/>
+	 *   Referrer <br/>
+	 *   Cookies <br/>
+	 *   SSL Support<br/>
+	 *   <br/>
+	 *   
+	 *   The body is not copied as the clone is intended to potnetially be re-used.
 	 */
 	public HTTPRequest clone()
 	{
-		return new HTTPRequest(method, page, post, referrer, cookies, useSSL);
+		HTTPRequest clone = new HTTPRequest(method, page, formData, referrer, cookies, useSSL);
+		
+		// are there any other attributes we want to copy besides the basics?
+		return clone;
 	}
 }
