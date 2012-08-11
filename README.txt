@@ -18,7 +18,7 @@ Place HTTPConn.jar into your project directory and add the JAR to your project b
 3.1) Sending an HTTP GET request and reading the result
 -------------------------------------------------------
 
-	String buf;
+	String buffer;
 	HTTPReader rdr = new HTTPConn("example.org"); // send the request to example.org
 	Get get = new Get(); // get the home page
 	rdr.exec(get);		// execute the request
@@ -26,11 +26,10 @@ Place HTTPConn.jar into your project directory and add the JAR to your project b
 	Scanner in = get.getScanner();	// read the response
 	while (in.hasNextLine())
 	{
-		buf = in.nextLine();
+		buffer = in.nextLine();
 		// use the result in anyway you need to..	
 	}
 
-	get.die(); 	// clean up
 	
 
 
@@ -39,7 +38,7 @@ Place HTTPConn.jar into your project directory and add the JAR to your project b
 -------------------------------------------------------
 
 	
-	String buf;
+	String buffer;
 	HTTPReader rdr = new HTTPConn("example.org"); // send the request to example.org
 	Post post = new Post("index.php"); // post to page 
 	FormData[] fd = {
@@ -52,8 +51,22 @@ Place HTTPConn.jar into your project directory and add the JAR to your project b
 	Scanner in = post.getScanner();	// read the response
 	while (in.hasNextLine())
 	{
-		buf = in.nextLine();
+		buffer = in.nextLine();
 		// use the result in anyway you need to..	
 	}
+	
+3.3) Using SSL
 
-	post.die(); 	// clean up
+    String buffer;
+	HTTPReader rdr = new HTTPConn("example.org"); // send the request to example.org
+	Get get = new Get(); // get the home page
+	get.useSSL(true);
+	
+	rdr.exec(get);		// execute the request
+	
+	Scanner in = get.getScanner();	// read the response
+	while (in.hasNextLine())
+	{
+		buffer = in.nextLine();
+		// use the result in anyway you need to..	
+	}
