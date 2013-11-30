@@ -21,54 +21,58 @@
  ******************************************************************************/
 package com.cklab.httpconn.util;
 
+import com.cklab.httpconn.reader.HTTPReader;
+import com.cklab.httpconn.request.HTTPRequest;
+
 /**
- * InputTag class.
- * 
- * Class to specify the HTTP input tag.
+ * A redirect object issued by HTTPReader.
  * 
  * @author cklab
- *
+ * 
  */
-public class InputTag {
+public class Redirect {
 
-	private String m_name, m_value;
-	private String m_type;
-	
+	private HTTPReader	rdr;		// the reader created for this redirect
+	private HTTPRequest	req;		// the HTTPRequest created for this redirect
+
+	boolean				followed;
+
 	/**
-	 * Construct an HTTP input tag with the give name, value, and type.
-	 * @param name the name field of the tag
-	 * @param value the value field of the tag
-	 * @param type the type field of the tag
+	 * Create a Redirect that leads to the use of the given HTTPReader and HTTPRequest.
+	 * 
+	 * @param rdr
+	 *            the HTTPReader for this redirect
+	 * @param req
+	 *            the HTTPRequest for this redirect
 	 */
-	public InputTag(String name, String value, String type)
-	{
-		m_name = name;
-		m_value = value;
-		m_type = type;
+	public Redirect(HTTPReader rdr, HTTPRequest req) {
+		this.rdr = rdr;
+		this.req = req;
 	}
 
 	/**
-	 * Get the name field of the tag.
-	 * @return the name field of the tag.
+	 * Get the HTTPReader for this redirect.
+	 * 
+	 * @return the HTTPReader for this redirect
 	 */
-	public String getName() {
-		return m_name;
+	public HTTPReader getHTTPReader() {
+		return rdr;
 	}
 
 	/**
-	 * Get the value field of the tag.
-	 * @return he value field of the tag.
+	 * Get the HTTP Request for this redirect.
+	 * 
+	 * @return the HTTP Request for this redirect.
 	 */
-	public String getValue() {
-		return m_value;
-	}
-
-	/**
-	 * Get the type field of the tag.
-	 * @return the type field of the tag.
-	 */
-	public String getType() {
-		return m_type;
+	public HTTPRequest getHTTPRequest() {
+		return req;
 	}
 	
+	public boolean isFollowed() {
+		return followed;
+	}
+	
+	public void setFollowed(boolean followed) {
+		this.followed = followed;
+	}
 }

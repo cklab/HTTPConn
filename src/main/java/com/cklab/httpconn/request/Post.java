@@ -20,6 +20,8 @@
  * SOFTWARE.
  ******************************************************************************/
 package com.cklab.httpconn.request;
+import java.util.HashMap;
+
 import com.cklab.httpconn.util.FormData;
 
 /**
@@ -32,6 +34,7 @@ import com.cklab.httpconn.util.FormData;
  */
 public class Post extends HTTPRequest {
 
+	
 	
 	/**
 	 * Construct a POST object to the given Page. SSL off by default.
@@ -70,37 +73,33 @@ public class Post extends HTTPRequest {
 	 */
 	public Post(String page, String cookies, boolean useSSL)
 	{
-		super("POST", page, "", cookies, useSSL);
+		super("POST", page, null, cookies, useSSL);
 	}
 	
 	/**
 	 * Set the post data for the POST request.
 	 * @param fd the post data
 	 */
-	public void setFormData(FormData[] fd)
-	{
-		String post = "";
-		for (FormData data : fd)
-		{
-			post+=data.getName()+"="+data.getValue()+"&";
-		}
-		try {
-			setFormData(post.substring(0,post.length()-1));
-		} catch (Exception e) { e.printStackTrace(); }
-	}
+//	public void setFormData(FormData[] fd)
+//	{
+//		String post = "";
+//		for (FormData data : fd)
+//		{
+//			String string = data.getValue().replaceAll("=", "%3D").replaceAll(";", "%3B").replaceAll("\\+", "%2B").replaceAll("/", "%2F");
+//			post+=data.getName()+"="+string+"&";
+//		}
+//		try {
+//			setFormData(post.substring(0,post.length()-1));
+//		} catch (Exception e) { e.printStackTrace(); }
+//	}
 
 	/**
 	 * Add a Post Data field to the existing post data in this Post object.
 	 * @param fd the FormData to add
 	 */
-	public void addPostField(FormData fd)
+	public void addFormField(FormData fd)
 	{
-		String post = getFormData();
-		if (post == null || post.equals(""))
-			post = "";
-		else 
-			post = post+"&";
-		setFormData(post+fd.getName()+"="+fd.getValue());
+		postFields.add(fd);
 	}
 	
 	
@@ -111,22 +110,9 @@ public class Post extends HTTPRequest {
 	 */
 	public String getFormField(String in_key)
 	{
-		String fields[] = formData.split("&");
-		
-		for (int i = 0;i<fields.length;i++)
-		{
-			String params[] = fields[i].split("=");
-			
-			if (fields.length <= 1) {
-				System.err.println("Malformed key/value pair for Post object");
-				continue;
-			}
-			
-			String key 		= params[0];
-			String value	= params[1];
-			
-			if (key.equals(in_key)) {
-				return value;
+		for (FormData fd : postFields) {
+			if (fd.getName().equals(in_key)) {
+				return fd.getValue();
 			}
 		}
 		return null;

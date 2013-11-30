@@ -39,6 +39,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -51,39 +52,38 @@ import com.cklab.httpconn.request.HTTPRequest;
 import com.cklab.httpconn.util.FormData;
 import com.cklab.httpconn.util.Redirect;
 
-
 /**
  * HTTPReader class.
  * 
  * Used to execute HTTPRequests. Talks to the HTTP Server specified in the constructor.
+ * 
  * @author cklab
- *
+ * 
  */
 public class HTTPReader extends Thread implements Cloneable {
 
-	public static final int HTTP_SERVICE_UNAVAILABLE = 503;
+	public static final int					HTTP_SERVICE_UNAVAILABLE	= 503;
 
 	/**
 	 * The User-Agent that is sent to the HTTP server.
 	 */
-	public static String USER_AGENT = "HTTPConn for Java";
+	public static String					USER_AGENT					= "HTTPConn for Java";
 
-	private static boolean DEBUG;
+	private static boolean					DEBUG;
 
-	private String 		site;
+	private String							site;
 
-	private int	 		port;
+	private int								port;
 
-	private Proxy 		proxy;
+	private Proxy							proxy;
 
-	protected Hashtable<String,FormData> 	cookies;
+	protected Hashtable<String, FormData>	cookies;
 
-	private boolean 	useProxy;
-	private boolean 	followRedirects;
-	private boolean 	handleCookies;
+	private boolean							useProxy;
+	private boolean							followRedirects;
+	private boolean							handleCookies;
 
-
-	private HostnameVerifier hostnameVerifier;
+	private HostnameVerifier				hostnameVerifier;
 
 	public HTTPReader() {
 		this(null);
@@ -91,7 +91,9 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Create an HTTPReader for the given site. on port 80.
-	 * @param site the host to execute HTTPRequests on.
+	 * 
+	 * @param site
+	 *            the host to execute HTTPRequests on.
 	 */
 	public HTTPReader(String site) {
 		this(site, 80, true);
@@ -99,18 +101,24 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Create an HTTPReader for the given site on port 80.
-	 * @param site the host to execute HTTPRequests on.
-	 * @param followRedirects whether or not to follow redirects automatically.
+	 * 
+	 * @param site
+	 *            the host to execute HTTPRequests on.
+	 * @param followRedirects
+	 *            whether or not to follow redirects automatically.
 	 */
 
-	public HTTPReader(String site,  boolean followRedirects) {
+	public HTTPReader(String site, boolean followRedirects) {
 		this(site, 80, followRedirects);
 	}
 
 	/**
 	 * Create an HTTPReader for the given site on the given port
-	 * @param site the host to execute HTTPRequests on.
-	 * @param port the port for this host
+	 * 
+	 * @param site
+	 *            the host to execute HTTPRequests on.
+	 * @param port
+	 *            the port for this host
 	 */
 	public HTTPReader(String site, int port) {
 		this(site, port, true);
@@ -118,9 +126,13 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Create an HTTPReader for the given site on the given port
-	 * @param site the host to execute HTTPRequests on.
-	 * @param port the port for this host
-	 * @param followRedirects whether or not to follow redirects automatically.
+	 * 
+	 * @param site
+	 *            the host to execute HTTPRequests on.
+	 * @param port
+	 *            the port for this host
+	 * @param followRedirects
+	 *            whether or not to follow redirects automatically.
 	 */
 	public HTTPReader(String site, int port, boolean followRedirects) {
 		this(site, port, new Hashtable<String, FormData>(), followRedirects);
@@ -128,24 +140,30 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Create an HTTPReader for the given site on the given port
-	 * @param site the host to execute HTTPRequests on.
-	 * @param port the port for this host
-	 * @param cookies the cookies to use for this HTTPReader
-	 * @param followRedirects whether or not to follow redirects automatically.
+	 * 
+	 * @param site
+	 *            the host to execute HTTPRequests on.
+	 * @param port
+	 *            the port for this host
+	 * @param cookies
+	 *            the cookies to use for this HTTPReader
+	 * @param followRedirects
+	 *            whether or not to follow redirects automatically.
 	 */
-	public HTTPReader(String site, int port, Hashtable<String,FormData> cookies,  boolean followRedirects) {
-		this.site 				= site;
-		this.port 				= port;
-		this.cookies 			= cookies;
-		this.followRedirects 	= followRedirects;
-		this.handleCookies 		= true;
-		this.useProxy	 		= false;
+	public HTTPReader(String site, int port, Hashtable<String, FormData> cookies, boolean followRedirects) {
+		this.site = site;
+		this.port = port;
+		this.cookies = cookies;
+		this.followRedirects = followRedirects;
+		this.handleCookies = true;
+		this.useProxy = false;
 	}
-
 
 	/**
 	 * Enable/disable debugging
-	 * @param debug true if debugging should be enabled, false otherwise.
+	 * 
+	 * @param debug
+	 *            true if debugging should be enabled, false otherwise.
 	 */
 	public static void setDebug(boolean debug) {
 		DEBUG = debug;
@@ -153,7 +171,9 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Execute an HTTPRequest on this host.
-	 * @param req the request to execute.
+	 * 
+	 * @param req
+	 *            the request to execute.
 	 */
 	public void exec(HTTPRequest req) {
 		exec(req, true);
@@ -163,12 +183,13 @@ public class HTTPReader extends Thread implements Cloneable {
 	 * Execute an HTTPRequest on this HTTPReader.
 	 * 
 	 * 
-	 * @param req The HTTPRequest to execute
-	 * @param retry whether or not a the request should be re-attempted in case of failure
+	 * @param req
+	 *            The HTTPRequest to execute
+	 * @param retry
+	 *            whether or not a the request should be re-attempted in case of failure
 	 */
 
-	private synchronized void exec(HTTPRequest req, boolean retry)
-	{
+	private synchronized void exec(HTTPRequest req, boolean retry) {
 		HttpURLConnection conn = null;
 
 		if (req == null) {
@@ -178,7 +199,7 @@ public class HTTPReader extends Thread implements Cloneable {
 
 		req.setBody(null);
 
-		if (handleCookies) { 
+		if (handleCookies) {
 			req.setCookies(getCookies());
 		}
 
@@ -209,31 +230,33 @@ public class HTTPReader extends Thread implements Cloneable {
 
 		} catch (BindException be) {
 			if (conn != null) {
-				//				System.out.println("Conn: "+conn.getURL());
+				// System.out.println("Conn: "+conn.getURL());
 			}
 			be.printStackTrace();
 			try {
-				Thread.sleep(5*1000);	
-			} catch (Exception ex) { }
+				// Thread.sleep(5*1000);
+			} catch (Exception ex) {
+			}
 			if (retry)
-				exec(req, false); 
+				exec(req, false);
 		} catch (Exception e) {
 			e.printStackTrace();
 			try {
-				Thread.sleep(5*1000);	
-			} catch (Exception ex) { }
+				// Thread.sleep(5*1000);
+			} catch (Exception ex) {
+			}
 			if (retry)
-				exec(req, false); 
+				exec(req, false);
 		}
 
 		req = null;
 	}
 
 	/**
-	 * After we have setup the connection and sent our request, we will parse the response. 
+	 * After we have setup the connection and sent our request, we will parse the response.
 	 * 
-	 * This method currently serves a subroutine for {@link #exec(HTTPRequest, boolean)} to populate the {@link HTTPRequest}
-	 * with the server's response.
+	 * This method currently serves a subroutine for {@link #exec(HTTPRequest, boolean)} to populate the
+	 * {@link HTTPRequest} with the server's response.
 	 * 
 	 * @param req
 	 * @param conn
@@ -243,10 +266,9 @@ public class HTTPReader extends Thread implements Cloneable {
 
 		InputStream iStream = conn.getInputStream();
 
-		// let's tell the HTTPRequest a little about the response 
+		// let's tell the HTTPRequest a little about the response
 		req.setStatusCode(conn.getResponseCode());
 		req.setHeaders(conn.getHeaderFields());
-
 
 		if (handleCookies) {
 			readCookies(req);
@@ -271,7 +293,8 @@ public class HTTPReader extends Thread implements Cloneable {
 
 			Redirect redir;
 
-			// here we determine whether the site leads to an external site (hence we cannot use this HTTPReader), or we are staying local
+			// here we determine whether the site leads to an external site (hence we cannot use this HTTPReader), or we
+			// are staying local
 			if (host.equals(getSite()) || host.equals("")) {
 				redir = new Redirect(this, redirect);
 			} else {
@@ -280,7 +303,6 @@ public class HTTPReader extends Thread implements Cloneable {
 
 			req.setRedirect(redir);
 		}
-
 
 		// read the body of the request
 		req.readBody(iStream);
@@ -294,17 +316,18 @@ public class HTTPReader extends Thread implements Cloneable {
 			}
 		}
 
-		if (req.getRedirect() != null && followRedirects) {
-			// in case there was a redirect from our request, we will build the entire chain 
+		if (req.getRedirect() != null && followRedirects && !req.getRedirect().isFollowed()) {
+			// in case there was a redirect from our request, we will build the entire chain
 			followRedirect(req);
 		}
 
 	}
 
-
 	/**
-	 * Creates and returns a  HttpURLConnection associated with the {@link HTTPRequest}
-	 * @param req the request
+	 * Creates and returns a HttpURLConnection associated with the {@link HTTPRequest}
+	 * 
+	 * @param req
+	 *            the request
 	 * @return the appropriate HttpUrlConnection (can be HttpsURLConnection if the {@link HTTPRequest} is using SSL).
 	 * @throws MalformedURLException
 	 * @throws IOException
@@ -317,42 +340,51 @@ public class HTTPReader extends Thread implements Cloneable {
 		String urlStr = site;
 		if (!site.startsWith("http")) {
 			if (req.isUsingSSL()) {
-				urlStr = "https://"+site;
+				urlStr = "https://" + site;
 			} else {
-				urlStr = "http://"+site;
+				urlStr = "http://" + site;
 			}
 		}
 
 		// construct the URL object and create the connection
-		URL url = new URL(urlStr+"/"+req.getPage());
+		URL url = new URL(urlStr + "/" + req.getPage());
 		if (useProxy && proxy != null) {
 			if (req.isUsingSSL()) {
-				conn = (HttpsURLConnection)url.openConnection(proxy);
+				conn = (HttpsURLConnection) url.openConnection(proxy);
 			} else {
-				conn = (HttpURLConnection)url.openConnection(proxy);
+				conn = (HttpURLConnection) url.openConnection(proxy);
 			}
 		} else {
 			if (req.isUsingSSL()) {
-				conn = (HttpsURLConnection)url.openConnection();
-			} else { 
-				conn = (HttpURLConnection)url.openConnection();
+				conn = (HttpsURLConnection) url.openConnection();
+			} else {
+				conn = (HttpURLConnection) url.openConnection();
 			}
 		}
 
 		// for handling SSL Certificates.. if the user specifies a verifier, then we should use it
 		if (req.isUsingSSL() && hostnameVerifier != null) {
-			HttpsURLConnection sslConnection = (HttpsURLConnection)conn;
+			HttpsURLConnection sslConnection = (HttpsURLConnection) conn;
 			sslConnection.setHostnameVerifier(hostnameVerifier);
 		}
 
 		// set up the request -- TODO: do the request properties need further customization by the user?
 		conn.setRequestProperty("User-Agent", getUserAgent());
-		conn.setRequestProperty("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-		conn.setRequestProperty("Accept-Language","en-us,en;q=0.5");
-		conn.setRequestProperty("Accept-Charset","ISO-8859-1,utf-8;q=0.7,*;q=0.7");
+		conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+		conn.setRequestProperty("Accept-Language", "en-us,en;q=0.5");
+		conn.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7");
+
+		// add the user's custom headers
+		if (req.getHeadersToSend() != null) {
+			for (Entry<String, List<String>> entry : req.getHeadersToSend().entrySet()) {
+				for (String value : entry.getValue()) {
+					conn.setRequestProperty(entry.getKey(), value);
+				}
+			}
+		}
 
 		if (req.getReferrer() != null) {
-			conn.setRequestProperty("Referer",req.getReferrer());
+			conn.setRequestProperty("Referer", req.getReferrer());
 		}
 
 		if (req.getCookies() != null && req.getCookies().length() != 0) {
@@ -362,8 +394,8 @@ public class HTTPReader extends Thread implements Cloneable {
 		conn.setRequestMethod(req.getMethod());
 
 		// TODO these are not yet customizable, perhaps they should be variables that can be defined by the user
-		conn.setConnectTimeout(15*1000);
-		conn.setReadTimeout(15*1000);
+		conn.setConnectTimeout(15 * 1000);
+		conn.setReadTimeout(15 * 1000);
 		conn.setUseCaches(false);
 
 		// we will handle both in and out
@@ -375,47 +407,43 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Read the cookies from an HTTPRequest
+	 * 
 	 * @param req
 	 */
-	public synchronized void readCookies(HTTPRequest req)
-	{
+	public synchronized void readCookies(HTTPRequest req) {
 
 		Map<String, List<String>> headers = req.getHeaders();
 		if (headers == null) {
 			if (DEBUG) {
-				System.err.println("readCookies(): NULL headers for "+req.getPage());
+				System.err.println("readCookies(): NULL headers for " + req.getPage());
 			}
 			return;
 		}
 		Iterator<String> it = headers.keySet().iterator();
 		ArrayList<String> reversed = new ArrayList<String>();
 
-		while (it.hasNext())
-		{
+		while (it.hasNext()) {
 			String key = it.next();
 			List<String> h = headers.get(key);
-			//System.out.println(key);
+			// System.out.println(key);
 
-			if (key != null && key.equals("Set-Cookie"))
-			{
+			if (key != null && key.equals("Set-Cookie")) {
 				for (String value : h)
-					if (key != null && value != null) 
-						reversed.add(0,value);
+					if (key != null && value != null)
+						reversed.add(0, value);
 			}
 		}
 
-		for (String value : reversed)
-		{
+		for (String value : reversed) {
 			String cookie_string = value.split(";")[0];
 
 			String cookie_name = cookie_string.split("=")[0];
 
 			// the +1 here accounts for the '=' that was removed by split()
-			String cookie_value = cookie_string.substring(cookie_name.length()+1, cookie_string.length());
-
+			String cookie_value = cookie_string.substring(cookie_name.length() + 1, cookie_string.length());
 
 			if (cookie_name != null && cookie_value != null) {
-				//System.out.println("some cookie: "+cookie_name+" with value "+cookie_value);
+				// System.out.println("some cookie: "+cookie_name+" with value "+cookie_value);
 				addCookie(cookie_name, cookie_value);
 			}
 		}
@@ -423,10 +451,11 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Set the host to be used for this HTTPReader
-	 * @param site the host
+	 * 
+	 * @param site
+	 *            the host
 	 */
-	public void setSite(String site)
-	{
+	public void setSite(String site) {
 		this.site = site;
 	}
 
@@ -434,13 +463,16 @@ public class HTTPReader extends Thread implements Cloneable {
 	 * Set a proxy that can be used to execute HTTPRequests on this HTTPReader.
 	 * 
 	 * Note: the proxy is not automatically used, see {@link #useProxy(boolean)}
-	 * @param host the proxy host
-	 * @param port the proxy port
-	 * @param PROXY_TYPE the proxy type
+	 * 
+	 * @param host
+	 *            the proxy host
+	 * @param port
+	 *            the proxy port
+	 * @param PROXY_TYPE
+	 *            the proxy type
 	 * @see #useProxy(boolean)
 	 */
-	public void setProxy(String host, int port, Proxy.Type PROXY_TYPE)
-	{
+	public void setProxy(String host, int port, Proxy.Type PROXY_TYPE) {
 		setProxy(host, port, null, null, PROXY_TYPE);
 	}
 
@@ -448,22 +480,26 @@ public class HTTPReader extends Thread implements Cloneable {
 	 * Set a proxy that can be used to execute HTTPRequests on this HTTPReader.
 	 * 
 	 * Note: the proxy is not automatically used, see {@link #useProxy(boolean)}
-	 * @param host the proxy host
-	 * @param port the proxy port
-	 * @param username the proxy username
-	 * @param password the proxy password
-	 * @param PROXY_TYPE the proxy type
+	 * 
+	 * @param host
+	 *            the proxy host
+	 * @param port
+	 *            the proxy port
+	 * @param username
+	 *            the proxy username
+	 * @param password
+	 *            the proxy password
+	 * @param PROXY_TYPE
+	 *            the proxy type
 	 * @see #useProxy(boolean)
 	 */
-	public void setProxy(String host, int port, final String username, final String password, Proxy.Type PROXY_TYPE)
-	{
-		if (username != null && password != null)
-		{
+	public void setProxy(String host, int port, final String username, final String password, Proxy.Type PROXY_TYPE) {
+		if (username != null && password != null) {
 			Authenticator.setDefault(new Authenticator() {
 				protected PasswordAuthentication getPasswordAuthentication() {
-					return new
-							PasswordAuthentication(username,password.toCharArray());
-				}});
+					return new PasswordAuthentication(username, password.toCharArray());
+				}
+			});
 
 		}
 
@@ -473,148 +509,153 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Enable use of the set proxy on this connection.
-	 * @param useProxy whether or not proxies should be used.
+	 * 
+	 * @param useProxy
+	 *            whether or not proxies should be used.
 	 */
-	public void useProxy(boolean useProxy)
-	{
+	public void useProxy(boolean useProxy) {
 		this.useProxy = useProxy;
 	}
 
 	/**
 	 * Set a proxy that can be used on this HTTPReader.
+	 * 
 	 * @see #useProxy(boolean)
 	 * @param proxy
 	 */
-	public void setProxy(Proxy proxy)
-	{
+	public void setProxy(Proxy proxy) {
 		this.proxy = proxy;
 	}
 
 	/**
 	 * Get the proxy that is set on this HTTPReader.
+	 * 
 	 * @return the Proxy
 	 */
-	public Proxy getProxy()
-	{
+	public Proxy getProxy() {
 		return proxy;
 	}
 
 	/**
 	 * Get the host page used.
+	 * 
 	 * @return the host page.
 	 */
-	public String getSite()
-	{
+	public String getSite() {
 		if (site.endsWith("/"))
-			site = site.substring(0, site.length()-1);
+			site = site.substring(0, site.length() - 1);
 		return site.trim();
 	}
 
 	/**
 	 * The user agent used on this HTTPReader.
+	 * 
 	 * @return the user agent
 	 */
-	public static String getUserAgent()
-	{
+	public static String getUserAgent() {
 		return USER_AGENT;
 	}
 
 	/**
-	 * Set the user agent to be used. 
-	 * @param ua the user agent to be used.
+	 * Set the user agent to be used.
+	 * 
+	 * @param ua
+	 *            the user agent to be used.
 	 */
-	public static void setUserAgent(String ua)
-	{
+	public static void setUserAgent(String ua) {
 		USER_AGENT = ua;
 	}
 
 	/**
 	 * Get the value of a particular cookie.
+	 * 
 	 * @param cookie
 	 * @return the value of a particular cookie.
 	 */
-	public String getCookie(String cookie)
-	{
+	public String getCookie(String cookie) {
 		FormData fd = cookies.get(cookie);
-		if (fd == null) return null;
+		if (fd == null)
+			return null;
 		return fd.getValue();
 	}
 
 	/**
 	 * Get the cookie string.
-	 * @return the cookie (=string (each cookie key-value pair is delimited with a semi-colon) 
+	 * 
+	 * @return the cookie (=string (each cookie key-value pair is delimited with a semi-colon)
 	 */
-	public String getCookies()
-	{
+	public String getCookies() {
 		String cookies = "";
 		Iterator<String> i = this.cookies.keySet().iterator();
-		while (i.hasNext())
-		{
+		while (i.hasNext()) {
 			String key = i.next();
 			FormData fd = this.cookies.get(key);
-			cookies+=fd.getName()+"="+fd.getValue()+"; ";
+			cookies += fd.getName() + "=" + fd.getValue() + "; ";
 		}
 		if (cookies != null && cookies.equals(""))
 			cookies = null;
-		if (cookies != null) 
-		{
-			cookies = cookies.substring(0, cookies.length()-1);
+		if (cookies != null) {
+			cookies = cookies.substring(0, cookies.length() - 1);
 		}
 
-		//System.out.println("Cookies: ["+cookies+"] for ["+this+"]");
+		// System.out.println("Cookies: ["+cookies+"] for ["+this+"]");
 		return cookies;
+	}
+
+	public ArrayList<FormData> getCookieList() {
+		return new ArrayList<FormData>(cookies.values());
 	}
 
 	/**
 	 * Get the full URI to the given HTTPRequest page on this host.
-	 * @param req the HTTPRequest
+	 * 
+	 * @param req
+	 *            the HTTPRequest
 	 * @return the full URI to the given HTTPRequest page on this host.
 	 */
-	public String getAbsoluteURI(HTTPRequest req)
-	{
+	public String getAbsoluteURI(HTTPRequest req) {
 		String uri;
 		if (req.isUsingSSL())
 			uri = "https://";
 		else
 			uri = "http://";
 
-		uri+=site+"/"+req.getPage();
+		uri += site + "/" + req.getPage();
 		return uri;
 	}
 
 	/**
-	 * Set whether or not cookies should be handled by the HTTPReader. 
-	 * @param handleCookies whether or not cookies should be handled by HTTPReader.
+	 * Set whether or not cookies should be handled by the HTTPReader.
+	 * 
+	 * @param handleCookies
+	 *            whether or not cookies should be handled by HTTPReader.
 	 */
-	public void handleCookies(boolean handleCookies)
-	{
+	public void handleCookies(boolean handleCookies) {
 		this.handleCookies = handleCookies;
 	}
 
-
-
 	/**
 	 * Whether or not a proxy is being used on the requests executed.
-	 * @return true if a proxy is used to execute requests, false otherwise. 
+	 * 
+	 * @return true if a proxy is used to execute requests, false otherwise.
 	 */
-	public boolean isUsingProxy()
-	{
+	public boolean isUsingProxy() {
 		return useProxy;
 	}
 
 	/**
 	 * Read the page.
-	 * @param req the request to read
+	 * 
+	 * @param req
+	 *            the request to read
 	 * @return true if the page was successfully read, false otherwise.
 	 */
-	public boolean read(HTTPRequest req)
-	{
+	public boolean read(HTTPRequest req) {
 		if (req == null)
 			return false;
 
 		Scanner in = req.getScanner();
-		while (in.hasNextLine())
-		{
+		while (in.hasNextLine()) {
 			in.nextLine();
 		}
 		return true;
@@ -623,21 +664,20 @@ public class HTTPReader extends Thread implements Cloneable {
 	/**
 	 * Follow a redirect
 	 */
-	private void followRedirect(HTTPRequest originalReq)
-	{
+	private void followRedirect(HTTPRequest originalReq) {
 		// in the case we get a 503, we do not want to try to execute again..
 		if (originalReq.getStatusCode() == HTTP_SERVICE_UNAVAILABLE) {
 			return;
 		}
 
-		HTTPReader 	redirRdr = originalReq.getRedirect().getHTTPReader();
+		HTTPReader redirRdr = originalReq.getRedirect().getHTTPReader();
 		HTTPRequest redirReq = originalReq.getRedirect().getHTTPRequest();
 
 		if (redirRdr.getSite().equals(getSite()) && this != redirRdr) {
-			//same cookies for the same site...
+			// same cookies for the same site...
 			if (handleCookies) {
-				//System.out.println("Transfer cookies for redirect");
-				//System.out.println("adding cookies: "+getCookies());
+				// System.out.println("Transfer cookies for redirect");
+				// System.out.println("adding cookies: "+getCookies());
 				redirRdr.addCookies(getCookies());
 			}
 			// also transfer the proxy settings
@@ -645,86 +685,89 @@ public class HTTPReader extends Thread implements Cloneable {
 		}
 
 		if (DEBUG) {
-			System.out.println("Redirect to: "+redirRdr.getSite()+"/"+redirReq.getPage());
+			System.out.println("Redirect to: " + redirRdr.getSite() + "/" + redirReq.getPage());
 		}
 
+		originalReq.getRedirect().setFollowed(true);
 		redirRdr.exec(redirReq);
 
 	}
 
 	/**
 	 * Get the host site from the URI.
-	 * @param uri the uri
+	 * 
+	 * @param uri
+	 *            the uri
 	 * @return the host
 	 */
-	public static String getHostFromURI(String uri)
-	{
+	public static String getHostFromURI(String uri) {
 		String host = "";
-		if (uri.charAt(uri.length()-1) != '/')
-			uri+="/";
+		if (uri.charAt(uri.length() - 1) != '/')
+			uri += "/";
 		Matcher m = Pattern.compile("(?:http|https)://(.*?)(/|\\?)(.+)").matcher(uri);
-		if (m.find())
-		{
+		if (m.find()) {
 			host = m.group(1);
 		}
 		if (DEBUG)
-			System.out.println("getHostFromURI: ["+uri+"]");
+			System.out.println("getHostFromURI: [" + uri + "]");
 		return host;
 	}
 
 	/**
 	 * Get the page name from the URI.
-	 * @param uri the uri
+	 * 
+	 * @param uri
+	 *            the uri
 	 * @return the page name
 	 */
-	public static String getPageFromURI(String uri)
-	{
+	public static String getPageFromURI(String uri) {
 		String page = "";
-		//if (uri.charAt(uri.length()-1) != '/')
-		//	uri+="/";
+		// if (uri.charAt(uri.length()-1) != '/')
+		// uri+="/";
 		Matcher m = Pattern.compile("(?:http|https)://(.*?)/(.+)?").matcher(uri);
-		if (m.find())
-		{
+		if (m.find()) {
 			page = m.group(2);
 		}
 		if (page == null)
 			return "";
 		if (page.endsWith("/")) {
-			//page = page.substring(0, page.length()-1);
+			// page = page.substring(0, page.length()-1);
 		}
 		if (DEBUG)
-			System.out.println("getPageFromURI: ["+page+"]");
+			System.out.println("getPageFromURI: [" + page + "]");
 		return page;
 	}
 
 	/**
 	 * Add a cookie to be used.
-	 * @param key the cookie name
-	 * @param value the cookie value
+	 * 
+	 * @param key
+	 *            the cookie name
+	 * @param value
+	 *            the cookie value
 	 */
-	public void addCookie(String key, String value)
-	{
-		if (key == null || value == null)
-		{
+	public void addCookie(String key, String value) {
+		if (key == null || value == null) {
 			if (DEBUG) {
-				System.err.println("Failed to add cookie, null value: "+key+"="+value);
+				System.err.println("Failed to add cookie, null value: " + key + "=" + value);
 			}
 			return;
 		}
 
 		if (value.equals("deleted")) {
-			// TODO: verify this behavior, so far there haven't been any problems -- should the expiration date be used in conjunction with this value?
-			//			update: just a value of `deleted` seems to be working fine so far...
+			// TODO: verify this behavior, so far there haven't been any problems -- should the expiration date be used
+			// in conjunction with this value?
+			// update: just a value of `deleted` seems to be working fine so far...
 			if (DEBUG) {
-				System.out.println("Delete Cookie: "+key);
+				System.out.println("Delete Cookie: " + key);
 			}
 			cookies.remove(key);
 		} else {
 			if (DEBUG) {
-				System.out.println("Add cookie "+key+"="+value);
+				System.out.println("Add cookie " + key + "=" + value);
 			}
 
-			FormData cookie = new FormData(key.trim(),value.trim());
+			FormData cookie = new FormData(key.trim(), value.trim());
 			if (!cookie.invalid()) {
 				cookies.put(key, cookie);
 			}
@@ -733,16 +776,17 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Remove a cookie.
-	 * @param key the name of the cookie
+	 * 
+	 * @param key
+	 *            the name of the cookie
 	 */
-	public void deleteCookie(String key)
-	{
+	public void deleteCookie(String key) {
 		if (key == null) {
 			return;
 		}
 
 		if (DEBUG) {
-			System.out.println("Del cookie: "+key);
+			System.out.println("Del cookie: " + key);
 		}
 
 		cookies.remove(key);
@@ -750,12 +794,12 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	/**
 	 * Add the given String of cookies
-	 * @param cookies the cookies, delimited by a semi-colon.
+	 * 
+	 * @param cookies
+	 *            the cookies, delimited by a semi-colon.
 	 */
-	public void addCookies(String cookies)
-	{
-		if (cookies == null || cookies.length() == 0)
-		{
+	public void addCookies(String cookies) {
+		if (cookies == null || cookies.length() == 0) {
 			if (DEBUG) {
 				System.err.println("Null cookies in addCoookies()");
 			}
@@ -764,22 +808,19 @@ public class HTTPReader extends Thread implements Cloneable {
 
 		String[] cookie = cookies.split(";");
 
-		for (int i =0;i<cookie.length;i++)
-		{
+		for (int i = 0; i < cookie.length; i++) {
 			String[] params = cookie[i].split("=");
-			if (params.length < 2) { 
-				continue; 
+			if (params.length < 2) {
+				continue;
 			}
-
 
 			StringBuilder sb = new StringBuilder(params[1].trim());
 			// reconstruct the value portion in case we the cookie had a value with any '='s in it
-			for (int a = 2; a < params.length; a++)
-			{
+			for (int a = 2; a < params.length; a++) {
 				sb.append("=");
 				sb.append(params[a].trim());
 			}
-			
+
 			addCookie(params[0].trim(), sb.toString());
 		}
 	}
@@ -787,22 +828,23 @@ public class HTTPReader extends Thread implements Cloneable {
 	/**
 	 * Clone this HTTPReader.
 	 */
-	public HTTPReader clone()
-	{
-		return new HTTPReader(site, port, (Hashtable<String, FormData>)cookies.clone(), followRedirects);
+	public HTTPReader clone() {
+		return new HTTPReader(site, port, (Hashtable<String, FormData>) cookies.clone(), followRedirects);
 	}
 
 	/**
 	 * Set whether or not redirects should be automatically followed.
-	 * @param redir whether or not redirects should be automatically followed.
+	 * 
+	 * @param redir
+	 *            whether or not redirects should be automatically followed.
 	 */
-	public void setFollowRedirects(boolean redir)
-	{
+	public void setFollowRedirects(boolean redir) {
 		this.followRedirects = redir;
 	}
 
 	/**
 	 * Define a {@link HostnameVerifier}.
+	 * 
 	 * @param hostnameVerifier
 	 */
 	public void setHostnameVerifier(HostnameVerifier hostnameVerifier) {

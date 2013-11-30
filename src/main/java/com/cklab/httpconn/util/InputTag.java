@@ -21,46 +21,67 @@
  ******************************************************************************/
 package com.cklab.httpconn.util;
 
-
-import com.cklab.httpconn.reader.HTTPReader;
-import com.cklab.httpconn.request.HTTPRequest;
-
 /**
- * A redirect object issued by HTTPReader.
+ * InputTag class.
+ * 
+ * Class to specify the HTTP input tag.
+ * 
  * @author cklab
  *
  */
-public class Redirect {
+public class InputTag {
 
-	private HTTPReader rdr;		//the reader created for this redirect
-	private HTTPRequest req;	//the HTTPRequest created for this redirect
+	private String m_name, m_value;
+	private String m_type;
 	
 	/**
-	 * Create a Redirect that leads to the use of the given HTTPReader and HTTPRequest.
-	 * @param rdr the HTTPReader for this redirect
-	 * @param req the HTTPRequest for this redirect
+	 * Construct an HTTP input tag with the give name, value, and type.
+	 * @param name the name field of the tag
+	 * @param value the value field of the tag
+	 * @param type the type field of the tag
 	 */
-	public Redirect(HTTPReader rdr, HTTPRequest req)
+	public InputTag(String name, String value, String type)
 	{
-		this.rdr = rdr;
-		this.req = req;
+		m_name = name;
+		m_value = value;
+		m_type = type;
+	}
+
+	/**
+	 * Get the name field of the tag.
+	 * @return the name field of the tag.
+	 */
+	public String getName() {
+		return m_name;
+	}
+
+	/**
+	 * Get the value field of the tag.
+	 * @return he value field of the tag.
+	 */
+	public String getValue() {
+		return m_value;
+	}
+
+	/**
+	 * Get the type field of the tag.
+	 * @return the type field of the tag.
+	 */
+	public String getType() {
+		return m_type;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("InputTag [m_name=").append(m_name).append(", m_value=")
+				.append(m_value).append(", m_type=").append(m_type).append("]");
+		return builder.toString();
 	}
 	
-	/**
-	 * Get the HTTPReader for this redirect.
-	 * @return the HTTPReader for this redirect
-	 */
-	public HTTPReader getHTTPReader()
-	{
-		return rdr;
-	}
 	
-	/**
-	 * Get the HTTP Request for this redirect.
-	 * @return the HTTP Request for this redirect.
-	 */
-	public HTTPRequest getHTTPRequest()
-	{
-		return req;
-	}
+	
 }
