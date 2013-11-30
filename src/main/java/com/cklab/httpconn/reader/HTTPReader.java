@@ -35,7 +35,8 @@ import java.net.Proxy;
 import java.net.SocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -77,7 +78,7 @@ public class HTTPReader extends Thread implements Cloneable {
 
 	private Proxy							proxy;
 
-	protected Hashtable<String, FormData>	cookies;
+	protected HashMap<String, FormData>	cookies;
 
 	private boolean							useProxy;
 	private boolean							followRedirects;
@@ -135,7 +136,7 @@ public class HTTPReader extends Thread implements Cloneable {
 	 *            whether or not to follow redirects automatically.
 	 */
 	public HTTPReader(String site, int port, boolean followRedirects) {
-		this(site, port, new Hashtable<String, FormData>(), followRedirects);
+		this(site, port, new HashMap<String, FormData>(), followRedirects);
 	}
 
 	/**
@@ -150,7 +151,7 @@ public class HTTPReader extends Thread implements Cloneable {
 	 * @param followRedirects
 	 *            whether or not to follow redirects automatically.
 	 */
-	public HTTPReader(String site, int port, Hashtable<String, FormData> cookies, boolean followRedirects) {
+	public HTTPReader(String site, int port, HashMap<String, FormData> cookies, boolean followRedirects) {
 		this.site = site;
 		this.port = port;
 		this.cookies = cookies;
@@ -829,7 +830,7 @@ public class HTTPReader extends Thread implements Cloneable {
 	 * Clone this HTTPReader.
 	 */
 	public HTTPReader clone() {
-		return new HTTPReader(site, port, (Hashtable<String, FormData>) cookies.clone(), followRedirects);
+		return new HTTPReader(site, port, (HashMap<String, FormData>) cookies.clone(), followRedirects);
 	}
 
 	/**
