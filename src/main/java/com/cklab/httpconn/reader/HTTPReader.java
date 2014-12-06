@@ -63,28 +63,28 @@ import com.cklab.httpconn.util.Redirect;
  */
 public class HTTPReader extends Thread implements Cloneable {
 
-	public static final int					HTTP_SERVICE_UNAVAILABLE	= 503;
+	public static final int				HTTP_SERVICE_UNAVAILABLE	= 503;
 
 	/**
 	 * The User-Agent that is sent to the HTTP server.
 	 */
-	public static String					USER_AGENT					= "HTTPConn for Java";
+	public static String				USER_AGENT					= "HTTPConn for Java";
 
-	private static boolean					DEBUG;
+	private static boolean				DEBUG;
 
-	private String							site;
+	private String						site;
 
-	private int								port;
+	private int							port;
 
-	private Proxy							proxy;
+	private Proxy						proxy;
 
 	protected HashMap<String, FormData>	cookies;
 
-	private boolean							useProxy;
-	private boolean							followRedirects;
-	private boolean							handleCookies;
-
-	private HostnameVerifier				hostnameVerifier;
+	private boolean						useProxy;
+	private boolean						followRedirects;
+	private boolean						handleCookies;
+	private boolean						addDefaultHeaders;
+	private HostnameVerifier			hostnameVerifier;
 
 	public HTTPReader() {
 		this(null);
@@ -158,6 +158,7 @@ public class HTTPReader extends Thread implements Cloneable {
 		this.followRedirects = followRedirects;
 		this.handleCookies = true;
 		this.useProxy = false;
+		this.addDefaultHeaders = true;
 	}
 
 	/**
@@ -215,7 +216,7 @@ public class HTTPReader extends Thread implements Cloneable {
 			// and we're off!
 			conn.connect();
 
-			if (req.getMethod().equals("POST")) {
+			if (req.getMethod().equals("POST") || req.getMethod().equals("PUT")) {
 				// for a POST method, we need to send the post data: do that here
 				DataOutputStream oStream = new DataOutputStream(conn.getOutputStream());
 				oStream.writeBytes(req.getFormData());
@@ -251,6 +252,10 @@ public class HTTPReader extends Thread implements Cloneable {
 		}
 
 		req = null;
+	}
+
+	public void setAddDefaultHeaders(boolean addDefaultHeaders) {
+		this.addDefaultHeaders = addDefaultHeaders;
 	}
 
 	/**
@@ -363,6 +368,11 @@ public class HTTPReader extends Thread implements Cloneable {
 			}
 		}
 
+
+		// we will handle both in and out
+		conn.setDoInput(true);
+		conn.setDoOutput(true);
+		
 		// for handling SSL Certificates.. if the user specifies a verifier, then we should use it
 		if (req.isUsingSSL() && hostnameVerifier != null) {
 			HttpsURLConnection sslConnection = (HttpsURLConnection) conn;
@@ -370,11 +380,17 @@ public class HTTPReader extends Thread implements Cloneable {
 		}
 
 		// set up the request -- TODO: do the request properties need further customization by the user?
-		conn.setRequestProperty("User-Agent", getUserAgent());
-		conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-		conn.setRequestProperty("Accept-Language", "en-us,en;q=0.5");
-		conn.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7");
+		if (addDefaultHeaders) {
+			conn.setRequestProperty("User-Agent", getUserAgent());
+			conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+			conn.setRequestProperty("Accept-Language", "en-us,en;q=0.5");
+			conn.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7");
+		}
 
+		
+		if (req.getMethod().equals("POST") || req.getMethod().equals("PUT")) {
+			conn.setRequestProperty("Content-Length", ""+req.getFormData().length());
+		}
 		// add the user's custom headers
 		if (req.getHeadersToSend() != null) {
 			for (Entry<String, List<String>> entry : req.getHeadersToSend().entrySet()) {
@@ -398,10 +414,6 @@ public class HTTPReader extends Thread implements Cloneable {
 		conn.setConnectTimeout(15 * 1000);
 		conn.setReadTimeout(15 * 1000);
 		conn.setUseCaches(false);
-
-		// we will handle both in and out
-		conn.setDoInput(true);
-		conn.setDoOutput(true);
 
 		return conn;
 	}
@@ -428,7 +440,7 @@ public class HTTPReader extends Thread implements Cloneable {
 			List<String> h = headers.get(key);
 			// System.out.println(key);
 
-			if (key != null && key.equals("Set-Cookie")) {
+			if (key != null && key.equalsIgnoreCase("set-cookie")) {
 				for (String value : h)
 					if (key != null && value != null)
 						reversed.add(0, value);

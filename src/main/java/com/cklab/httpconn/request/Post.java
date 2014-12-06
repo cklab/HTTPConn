@@ -20,8 +20,6 @@
  * SOFTWARE.
  ******************************************************************************/
 package com.cklab.httpconn.request;
-import java.util.HashMap;
-
 import com.cklab.httpconn.util.FormData;
 
 /**

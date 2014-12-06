@@ -34,7 +34,9 @@ import java.util.regex.Pattern;
 import com.cklab.httpconn.reader.HTTPReader;
 import com.cklab.httpconn.util.FormData;
 import com.cklab.httpconn.util.InputTag;
+import com.cklab.httpconn.util.PostFormat;
 import com.cklab.httpconn.util.Redirect;
+import com.eclipsesource.json.JsonObject;
 
 /**
  * HTTPRequest class.
@@ -57,12 +59,16 @@ public class HTTPRequest implements Cloneable {
 	protected String					referrer;
 	protected String					cookies;
 
+	protected PostFormat				postFormat;
+
 	private StringBuilder				body;
 	private int							statusCode;
 
 	private boolean						useSSL;
 
 	private Redirect					redirect;
+
+	
 
 	/**
 	 * Create an HTTP Request.
@@ -143,6 +149,11 @@ public class HTTPRequest implements Cloneable {
 		this.inputs = new ArrayList<InputTag>();
 		this.headersToSend = new HashMap<String, List<String>>();
 		this.postFields = postFields;
+		this.postFormat = PostFormat.QUERY;
+	}
+
+	public void setPostFormat(PostFormat postFormat) {
+		this.postFormat = postFormat;
 	}
 
 	/**
@@ -189,22 +200,31 @@ public class HTTPRequest implements Cloneable {
 	 * @return the form data.
 	 */
 	public String getFormData() {
-		StringBuilder formData = new StringBuilder();
-		for (FormData fd : postFields) {
-			String value = fd.getValue();
-			formData.append(fd.getName());
-			formData.append("=");
+		if (postFormat == PostFormat.JSON) {
+			JsonObject data = new JsonObject();
+			for (FormData fd : postFields) {
+				String value = fd.getValue();
+				data.add(fd.getName(), value);
+			}
+			
+			return data.toString();
+		} else {
+			StringBuilder formData = new StringBuilder();
+			for (FormData fd : postFields) {
+				String value = fd.getValue();
+				value = value.replaceAll("=", "%3D").replaceAll(";", "%3B").replaceAll("\\+", "%2B").replaceAll("/", "%2F").replaceAll("\\s", "+");
 
-			value = value.replaceAll("=", "%3D").replaceAll(";", "%3B").replaceAll("\\+", "%2B").replaceAll("/", "%2F").replaceAll("\\s", "+");
+				formData.append(fd.getName());
+				formData.append("=");
+				formData.append(value);
+				formData.append("&");
+			}
 
-			formData.append(value);
-			formData.append("&");
+			if (formData.length() > 0) {
+				formData.setLength(formData.length() - 1); // remove last &
+			}
+			return formData.toString();
 		}
-
-		if (formData.length() > 0) {
-			formData.setLength(formData.length() - 1); // remove last &
-		}
-		return formData.toString();
 	}
 
 	/**
@@ -265,6 +285,16 @@ public class HTTPRequest implements Cloneable {
 			headersToSend.put(headerKey, values);
 		}
 		values.add(headerValue);
+	}
+	
+	/**
+	 * Add a header to be sent to the server. This will replace any default headers set by the {@link HTTPReader}.
+	 * 
+	 * @param headerKey
+	 * @param headerValue
+	 */
+	public void removeHeader(String headerKey) {
+		headersToSend.remove(headerKey);
 	}
 
 	/**
